@@ -29,9 +29,9 @@
 - **Load** JSON profiles from a directory (`load_profiles`)
 - **Inspect** profile structure with tree visualization (`inspect_profile`)
 - **Extract** data using dot-notation paths:
-  - `extract()` → Wide format (one row per subject)
-  - `extract_nested()` → Long format (one row per session/date/side)
-  - `extract_flat()` → Flatten all nested keys
+  - `extract()` -> Wide format (one row per subject)
+  - `extract_nested()` -> Long format (one row per session/date/side)
+  - `extract_flat()` -> Flatten all nested keys
 - **Filter** by subjects, date ranges, groups, or data availability (`create_filters`)
 - **CLI** for quick exploration without writing code
 
@@ -48,14 +48,14 @@
 
 ```
 oh_parser/
-├── __init__.py          # Public API exports
-├── __main__.py          # CLI entrypoint (python -m oh_parser)
-├── cli.py               # Command-line interface
-├── loader.py            # Load OH profile JSON files
-├── path_resolver.py     # Dot-notation path navigation
-├── filters.py           # Subject/date filtering
-├── extract.py           # DataFrame extraction functions
-└── utils.py             # Utility functions
+|-- __init__.py          # Public API exports
+|-- __main__.py          # CLI entrypoint (python -m oh_parser)
+|-- cli.py               # Command-line interface
+|-- loader.py            # Load OH profile JSON files
+|-- path_resolver.py     # Dot-notation path navigation
+|-- filters.py           # Subject/date filtering
+|-- extract.py           # DataFrame extraction functions
++-- utils.py             # Utility functions
 ```
 
 ---
@@ -73,7 +73,7 @@ Or with requirements file:
 pip install -r requirements.txt
 ```
 
-**Dependencies:** pandas ≥ 1.5.0, Python ≥ 3.9
+**Dependencies:** pandas >= 1.5.0, Python >= 3.9
 
 ---
 
@@ -144,22 +144,22 @@ Each subject has one file: `{subject_id}_OH_profile.json`
 
 ```
 sensor_metrics.emg/
-├── {date: DD-MM-YYYY}/              # Level 1: Recording day
-│   ├── {session: HH-MM-SS}/         # Level 2: Session start time
-│   │   ├── left/                    # Level 3: Side
-│   │   │   ├── EMG_session/         # Session metadata
-│   │   │   ├── EMG_intensity/       # Intensity metrics
-│   │   │   ├── EMG_apdf/            # APDF percentiles
-│   │   │   ├── EMG_rest_recovery/   # Rest/recovery metrics
-│   │   │   └── EMG_relative_bins/   # Relative intensity bins
-│   │   └── right/
-│   │       └── ... (same structure)
-│   └── EMG_daily_metrics/           # Aggregated daily
-│       ├── left/ { ... }
-│       └── right/ { ... }
-└── EMG_weekly_metrics/              # Aggregated weekly
-    ├── left/ { ... }
-    └── right/ { ... }
+|-- {date: DD-MM-YYYY}/              # Level 1: Recording day
+|   |-- {session: HH-MM-SS}/         # Level 2: Session start time
+|   |   |-- left/                    # Level 3: Side
+|   |   |   |-- EMG_session/         # Session metadata
+|   |   |   |-- EMG_intensity/       # Intensity metrics
+|   |   |   |-- EMG_apdf/            # APDF percentiles
+|   |   |   |-- EMG_rest_recovery/   # Rest/recovery metrics
+|   |   |   +-- EMG_relative_bins/   # Relative intensity bins
+|   |   +-- right/
+|   |       +-- ... (same structure)
+|   +-- EMG_daily_metrics/           # Aggregated daily
+|       |-- left/ { ... }
+|       +-- right/ { ... }
++-- EMG_weekly_metrics/              # Aggregated weekly
+    |-- left/ { ... }
+    +-- right/ { ... }
 ```
 
 ---
@@ -168,7 +168,7 @@ sensor_metrics.emg/
 
 ### Loading Functions
 
-#### `load_profiles(directory, subject_ids=None, verbose=True)` → `Dict[str, dict]`
+#### `load_profiles(directory, subject_ids=None, verbose=True)` -> `Dict[str, dict]`
 
 Load all OH profiles from a directory.
 
@@ -183,15 +183,15 @@ profiles = load_profiles("/path/to/OH_profiles/")
 profiles = load_profiles("/path/to/OH_profiles/", subject_ids=["103", "104"])
 ```
 
-#### `list_subjects(profiles)` → `List[str]`
+#### `list_subjects(profiles)` -> `List[str]`
 
 Get sorted list of subject IDs (sorted numerically).
 
-#### `get_profile(profiles, subject_id)` → `dict | None`
+#### `get_profile(profiles, subject_id)` -> `dict | None`
 
 Get a single profile by subject ID. Returns `None` if not found.
 
-#### `load_profile(filepath)` → `dict`
+#### `load_profile(filepath)` -> `dict`
 
 Load a single OH profile JSON file.
 
@@ -208,7 +208,7 @@ inspect_profile(profile)
 inspect_profile(profile, base_path="sensor_metrics.emg", max_depth=3)
 ```
 
-#### `get_available_paths(profile, base_path="", max_depth=6)` → `List[str]`
+#### `get_available_paths(profile, base_path="", max_depth=6)` -> `List[str]`
 
 Get all dot-notation paths available in a profile.
 
@@ -217,7 +217,7 @@ paths = get_available_paths(profile)
 # ['meta_data.age', 'sensor_metrics.emg.EMG_weekly_metrics.left.EMG_apdf.active.p50', ...]
 ```
 
-#### `summarize_profiles(profiles)` → `pd.DataFrame`
+#### `summarize_profiles(profiles)` -> `pd.DataFrame`
 
 Generate summary showing data availability across subjects.
 
@@ -230,14 +230,14 @@ summary = summarize_profiles(profiles)
 
 ### Extraction Functions
 
-#### `extract(profiles, paths, filters=None, include_subject_id=True)` → `pd.DataFrame`
+#### `extract(profiles, paths, filters=None, include_subject_id=True)` -> `pd.DataFrame`
 
 Extract specific paths into **wide-format DataFrame** (one row per subject).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `profiles` | `Dict[str, dict]` | Loaded profiles |
-| `paths` | `Dict[str, str]` | Mapping: column name → dot-notation path |
+| `paths` | `Dict[str, str]` | Mapping: column name -> dot-notation path |
 | `filters` | `dict` | Optional filters from `create_filters()` |
 | `include_subject_id` | `bool` | Include subject_id column |
 
@@ -249,7 +249,7 @@ df = extract(profiles, paths={
 # Output: subject_id | age | emg_p50
 ```
 
-#### `extract_nested(profiles, base_path, level_names, value_paths=None, filters=None, exclude_patterns=None, flatten_values=True)` → `pd.DataFrame`
+#### `extract_nested(profiles, base_path, level_names, value_paths=None, filters=None, exclude_patterns=None, flatten_values=True)` -> `pd.DataFrame`
 
 Extract nested structures into **long-format DataFrame** (one row per leaf node).
 
@@ -274,7 +274,7 @@ df = extract_nested(
 # Output: subject_id | date | session | side | EMG_intensity.mean_percent_mvc | ...
 ```
 
-#### `extract_flat(profiles, base_path, filters=None, max_depth=10)` → `pd.DataFrame`
+#### `extract_flat(profiles, base_path, filters=None, max_depth=10)` -> `pd.DataFrame`
 
 Flatten everything under a path into wide-format (one row per subject).
 
@@ -296,11 +296,11 @@ value = resolve_path(profile, "sensor_metrics.emg.EMG_weekly_metrics.left.EMG_ap
 # Returns: 12.5 (or None if path doesn't exist)
 ```
 
-#### `path_exists(data, path)` → `bool`
+#### `path_exists(data, path)` -> `bool`
 
 Check if a path exists.
 
-#### `list_keys_at_path(data, path)` → `List[str]`
+#### `list_keys_at_path(data, path)` -> `List[str]`
 
 List all keys at a given path.
 
@@ -313,7 +313,7 @@ keys = list_keys_at_path(profile, "sensor_metrics.emg")
 
 ### Filtering
 
-#### `create_filters(...)` → `Dict[str, Any]`
+#### `create_filters(...)` -> `Dict[str, Any]`
 
 Create a filters dictionary for controlling extraction.
 
@@ -534,7 +534,7 @@ python -m oh_parser --dir /path/to/OH_profiles --quiet
 | `mean_percent_mvc` | float | %MVC | Mean amplitude |
 | `max_percent_mvc` | float | %MVC | Peak amplitude |
 | `min_percent_mvc` | float | %MVC | Minimum amplitude |
-| `iemg_percent_seconds` | float | %MVC·s | Integrated EMG (area under curve) |
+| `iemg_percent_seconds` | float | %MVC*s | Integrated EMG (area under curve) |
 
 #### `EMG_apdf` - Amplitude Probability Distribution Function
 
@@ -543,7 +543,7 @@ python -m oh_parser --dir /path/to/OH_profiles --quiet
 | `full.p10` | float | %MVC | 10th percentile (all samples) |
 | `full.p50` | float | %MVC | 50th percentile / median |
 | `full.p90` | float | %MVC | 90th percentile |
-| `active.p10` | float | %MVC | 10th percentile (active only, ≥0.5% MVC) |
+| `active.p10` | float | %MVC | 10th percentile (active only, >=0.5% MVC) |
 | `active.p50` | float | %MVC | 50th percentile (active only) |
 | `active.p90` | float | %MVC | 90th percentile (active only) |
 
@@ -578,33 +578,33 @@ python -m oh_parser --dir /path/to/OH_profiles --quiet
 ## Pipeline Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           OH PARSER PIPELINE                                 │
-│                                                                              │
-│   JSON Files     →    Load     →    Filter    →    Navigate    →  DataFrame │
-│                                                                              │
-│   *_OH_profile.json   loader.py    filters.py   path_resolver.py  extract.py│
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                           OH PARSER PIPELINE                                 |
+|                                                                              |
+|   JSON Files     ->    Load     ->    Filter    ->    Navigate    -> DataFrame|
+|                                                                              |
+|   *_OH_profile.json   loader.py    filters.py   path_resolver.py  extract.py|
++-----------------------------------------------------------------------------+
 ```
 
 ### Data Flow
 
 ```
 /path/to/OH_profiles/
-├── 80_OH_profile.json  ─┐
-├── 81_OH_profile.json   ├──► load_profiles() ──► {"80": {...}, "81": {...}}
-└── 82_OH_profile.json  ─┘                                   │
-                                                             ▼
+|-- 80_OH_profile.json  --+
+|-- 81_OH_profile.json    +--> load_profiles() --> {"80": {...}, "81": {...}}
++-- 82_OH_profile.json  --+                                   |
+                                                              v
                                                  apply_subject_filters()
-                                                             │
-                                                             ▼
+                                                              |
+                                                              v
                                                     Filtered Profiles
-                                                             │
-                                  ┌──────────────────────────┼──────────────────────┐
-                                  ▼                          ▼                      ▼
+                                                              |
+                                  +---------------------------+---------------------------+
+                                  v                           v                           v
                              extract()              extract_nested()          extract_flat()
-                                  │                          │                      │
-                                  ▼                          ▼                      ▼
+                                  |                           |                           |
+                                  v                           v                           v
                               Wide DF                    Long DF              Flat Wide DF
                            (1 row/subject)          (1 row/session)       (all keys as cols)
 ```

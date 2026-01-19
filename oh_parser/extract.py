@@ -20,7 +20,7 @@ from .path_resolver import (
     path_exists,
     resolve_path,
 )
-from .utils import flatten_dict, is_date_key, is_time_key
+from .utils import flatten_dict, is_date_key, is_time_key, print_tree, get_nested_keys
 
 
 def extract(
@@ -275,7 +275,6 @@ def get_available_paths(
     :param max_depth: Maximum depth to traverse.
     :returns: List of all dot-notation paths.
     """
-    from .utils import get_nested_keys
     
     data = resolve_path(profile, base_path) if base_path else profile
     if not isinstance(data, dict):
@@ -303,7 +302,6 @@ def inspect_profile(
     :param max_depth: Maximum depth to display.
     :param show_values: Whether to show leaf values.
     """
-    from .utils import print_tree
     
     data = resolve_path(profile, base_path) if base_path else profile
     

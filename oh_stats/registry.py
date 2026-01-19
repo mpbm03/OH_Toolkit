@@ -1,0 +1,491 @@
+"""
+Outcome Type Registry
+=====================
+
+Maps outcomes to their appropriate statistical model families, transforms,
+and analysis levels. This is the core dispatch mechanism that makes the
+pipeline outcome-type aware rather than assuming everything is Gaussian.
+
+Model Families:
+- continuous: LMM (Gaussian) with optional transforms
+- ordinal: Ordered logistic mixed model (future: PyMC)
+- proportion: Beta/logit-transformed LMM for bounded [0,1] outcomes
+- count: Poisson/NegBin for event counts (future: GLMM)
+
+Architecture Note:
+    This module uses dictionaries instead of classes for data structures
+    to maintain consistency with the oh_parser project style.
+
+Usage:
+    from oh_stats.registry import get_outcome_info, OutcomeType
+    
+    info = get_outcome_info("EMG_intensity.mean_percent_mvc")
+    if info["outcome_type"] == OutcomeType.CONTINUOUS:
+        result = fit_lmm(...)
+"""
+from __future__ import annotations
+
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
+import warnings
+
+
+# =============================================================================
+# Enums (Type constants - these are acceptable)
+# =============================================================================
+
+class OutcomeType(Enum):
+    """Statistical model family for an outcome."""
+    CONTINUOUS = auto()      # LMM (Gaussian), with optional transform
+    ORDINAL = auto()         # Ordered logistic mixed model
+    PROPORTION = auto()      # Beta / logit-transform LMM for [0,1]
+    COUNT = auto()           # Poisson / NegBin for event counts
+    BINARY = auto()          # Logistic mixed model for 0/1
+    UNKNOWN = auto()         # Not yet classified
+
+
+class AnalysisLevel(Enum):
+    """Temporal aggregation level of the outcome."""
+    SESSION = auto()         # Per-session metrics
+    DAILY = auto()           # Daily aggregates
+    WEEKLY = auto()          # Weekly aggregates
+    SINGLE = auto()          # One-time measures (e.g., baseline questionnaire)
+
+
+class TransformType(Enum):
+    """Recommended variance-stabilizing transforms."""
+    NONE = auto()
+    LOG = auto()             # log(x) for positive skewed
+    LOG1P = auto()           # log(1 + x) for non-negative with zeros
+    SQRT = auto()            # sqrt(x) for moderate skew
+    LOGIT = auto()           # logit(x) for proportions
+    ARCSINE = auto()         # arcsin(sqrt(x)) for proportions (deprecated)
+
+
+# =============================================================================
+# OutcomeInfo TypedDict
+# =============================================================================
+
+class OutcomeInfo(TypedDict):
+    """
+    Metadata for a single outcome variable.
+    
+    Keys:
+        name: Outcome variable name (dot-notation path)
+        outcome_type: Statistical model family
+        level: Temporal aggregation level
+        transform: Recommended transform (can be overridden)
+        description: Human-readable description
+        unit: Measurement unit (e.g., "%MVC", "seconds", "count")
+        valid_range: (min, max) tuple for sanity checks
+        is_primary: Whether this is a primary (vs exploratory) outcome
+        sensor: Source sensor (e.g., "emg", "heart_rate", "questionnaire")
+        requires_both_sides: Whether left/right must both exist
+    """
+    name: str
+    outcome_type: OutcomeType
+    level: AnalysisLevel
+    transform: TransformType
+    description: str
+    unit: str
+    valid_range: Optional[Tuple[Optional[float], Optional[float]]]
+    is_primary: bool
+    sensor: str
+    requires_both_sides: bool
+
+
+def create_outcome_info(
+    name: str,
+    outcome_type: OutcomeType = OutcomeType.CONTINUOUS,
+    level: AnalysisLevel = AnalysisLevel.DAILY,
+    transform: TransformType = TransformType.NONE,
+    description: str = "",
+    unit: str = "",
+    valid_range: Optional[Tuple[Optional[float], Optional[float]]] = None,
+    is_primary: bool = False,
+    sensor: str = "emg",
+    requires_both_sides: bool = False,
+) -> OutcomeInfo:
+    """
+    Create an OutcomeInfo dictionary with all metadata.
+    
+    :param name: Outcome variable name (dot-notation path)
+    :param outcome_type: Statistical model family
+    :param level: Temporal aggregation level
+    :param transform: Recommended transform (can be overridden)
+    :param description: Human-readable description
+    :param unit: Measurement unit (e.g., "%MVC", "seconds", "count")
+    :param valid_range: (min, max) tuple for sanity checks
+    :param is_primary: Whether this is a primary (vs exploratory) outcome
+    :param sensor: Source sensor (e.g., "emg", "heart_rate", "questionnaire")
+    :param requires_both_sides: Whether left/right must both exist
+    :returns: OutcomeInfo dictionary
+    """
+    return {
+        "name": name,
+        "outcome_type": outcome_type,
+        "level": level,
+        "transform": transform,
+        "description": description,
+        "unit": unit,
+        "valid_range": valid_range,
+        "is_primary": is_primary,
+        "sensor": sensor,
+        "requires_both_sides": requires_both_sides,
+    }
+
+
+# =============================================================================
+# DEFAULT OUTCOME REGISTRY (EMG metrics)
+# =============================================================================
+
+_DEFAULT_EMG_OUTCOMES: Dict[str, OutcomeInfo] = {
+    # --- EMG Intensity metrics ---
+    "EMG_intensity.mean_percent_mvc": create_outcome_info(
+        name="EMG_intensity.mean_percent_mvc",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,  # Often roughly normal
+        description="Mean muscle activation as percentage of MVC",
+        unit="%MVC",
+        valid_range=(0, 500),  # Can exceed 100% for brief peaks
+        is_primary=True,
+        sensor="emg",
+    ),
+    "EMG_intensity.max_percent_mvc": create_outcome_info(
+        name="EMG_intensity.max_percent_mvc",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG,  # Often right-skewed
+        description="Maximum muscle activation as percentage of MVC",
+        unit="%MVC",
+        valid_range=(0, 1000),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_intensity.min_percent_mvc": create_outcome_info(
+        name="EMG_intensity.min_percent_mvc",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG1P,
+        description="Minimum muscle activation as percentage of MVC",
+        unit="%MVC",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_intensity.iemg_percent_seconds": create_outcome_info(
+        name="EMG_intensity.iemg_percent_seconds",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG,  # Cumulative, often skewed
+        description="Integrated EMG (cumulative activation × time)",
+        unit="%MVC·s",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    
+    # --- EMG APDF (Amplitude Probability Distribution Function) ---
+    "EMG_apdf.active.p10": create_outcome_info(
+        name="EMG_apdf.active.p10",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,
+        description="10th percentile of activation during active periods",
+        unit="%MVC",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_apdf.active.p50": create_outcome_info(
+        name="EMG_apdf.active.p50",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,
+        description="Median activation during active periods",
+        unit="%MVC",
+        valid_range=(0, 100),
+        is_primary=True,  # Key outcome
+        sensor="emg",
+    ),
+    "EMG_apdf.active.p90": create_outcome_info(
+        name="EMG_apdf.active.p90",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,
+        description="90th percentile of activation during active periods",
+        unit="%MVC",
+        valid_range=(0, 200),
+        is_primary=False,
+        sensor="emg",
+    ),
+    
+    # --- EMG Rest/Recovery metrics ---
+    "EMG_rest_recovery.rest_percent": create_outcome_info(
+        name="EMG_rest_recovery.rest_percent",
+        outcome_type=OutcomeType.PROPORTION,  # Bounded [0, 1] as fraction
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOGIT,  # For proportions
+        description="Percentage of time in rest state",
+        unit="%",
+        valid_range=(0, 100),
+        is_primary=False,  # Often near-zero, may be degenerate
+        sensor="emg",
+    ),
+    "EMG_rest_recovery.gap_frequency_per_minute": create_outcome_info(
+        name="EMG_rest_recovery.gap_frequency_per_minute",
+        outcome_type=OutcomeType.CONTINUOUS,  # Rate, treat as continuous
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG1P,
+        description="Frequency of rest gaps per minute",
+        unit="gaps/min",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_rest_recovery.max_sustained_activity_s": create_outcome_info(
+        name="EMG_rest_recovery.max_sustained_activity_s",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG,  # Duration, often skewed
+        description="Maximum sustained activity duration",
+        unit="seconds",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_rest_recovery.gap_count": create_outcome_info(
+        name="EMG_rest_recovery.gap_count",
+        outcome_type=OutcomeType.COUNT,  # Integer count
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,  # Use appropriate count model
+        description="Number of rest gaps",
+        unit="count",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    
+    # --- EMG Relative Bins ---
+    "EMG_relative_bins.below_usual_pct": create_outcome_info(
+        name="EMG_relative_bins.below_usual_pct",
+        outcome_type=OutcomeType.PROPORTION,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOGIT,
+        description="Percentage of time below usual activation level",
+        unit="%",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_relative_bins.typical_low_pct": create_outcome_info(
+        name="EMG_relative_bins.typical_low_pct",
+        outcome_type=OutcomeType.PROPORTION,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOGIT,
+        description="Percentage of time in typical-low activation",
+        unit="%",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_relative_bins.typical_high_pct": create_outcome_info(
+        name="EMG_relative_bins.typical_high_pct",
+        outcome_type=OutcomeType.PROPORTION,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOGIT,
+        description="Percentage of time in typical-high activation",
+        unit="%",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_relative_bins.high_for_you_pct": create_outcome_info(
+        name="EMG_relative_bins.high_for_you_pct",
+        outcome_type=OutcomeType.PROPORTION,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOGIT,
+        description="Percentage of time in high-for-individual activation",
+        unit="%",
+        valid_range=(0, 100),
+        is_primary=False,
+        sensor="emg",
+    ),
+    
+    # --- EMG Session metrics ---
+    "EMG_session.duration_s": create_outcome_info(
+        name="EMG_session.duration_s",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG,
+        description="Total recording duration",
+        unit="seconds",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_session.active_duration_s": create_outcome_info(
+        name="EMG_session.active_duration_s",
+        outcome_type=OutcomeType.CONTINUOUS,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.LOG,
+        description="Active recording duration",
+        unit="seconds",
+        valid_range=(0, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+    "EMG_session.session_count": create_outcome_info(
+        name="EMG_session.session_count",
+        outcome_type=OutcomeType.COUNT,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,
+        description="Number of recording sessions",
+        unit="count",
+        valid_range=(1, None),
+        is_primary=False,
+        sensor="emg",
+    ),
+}
+
+
+# Global mutable registry (populated from defaults)
+OUTCOME_REGISTRY: Dict[str, OutcomeInfo] = dict(_DEFAULT_EMG_OUTCOMES)
+
+
+# =============================================================================
+# Registry API
+# =============================================================================
+
+def get_outcome_info(name: str) -> OutcomeInfo:
+    """
+    Get outcome metadata from registry.
+    
+    If outcome is not registered, returns a default UNKNOWN entry with a warning.
+    
+    :param name: Outcome variable name (dot-notation)
+    :returns: OutcomeInfo dict with type, transform, and metadata
+    """
+    if name in OUTCOME_REGISTRY:
+        return OUTCOME_REGISTRY[name]
+    
+    # Unknown outcome - return default with warning
+    warnings.warn(
+        f"Outcome '{name}' not in registry. Using default CONTINUOUS type. "
+        f"Consider registering it with register_outcome() for proper handling.",
+        UserWarning,
+    )
+    return create_outcome_info(
+        name=name,
+        outcome_type=OutcomeType.UNKNOWN,
+        level=AnalysisLevel.DAILY,
+        transform=TransformType.NONE,
+        description=f"Unregistered outcome: {name}",
+    )
+
+
+def register_outcome(
+    name: str,
+    outcome_type: OutcomeType = OutcomeType.CONTINUOUS,
+    level: AnalysisLevel = AnalysisLevel.DAILY,
+    transform: TransformType = TransformType.NONE,
+    description: str = "",
+    unit: str = "",
+    valid_range: Optional[Tuple[Optional[float], Optional[float]]] = None,
+    is_primary: bool = False,
+    sensor: str = "unknown",
+    requires_both_sides: bool = False,
+    overwrite: bool = False,
+) -> OutcomeInfo:
+    """
+    Register a new outcome in the registry.
+    
+    :param name: Outcome variable name (dot-notation)
+    :param outcome_type: Statistical model family
+    :param level: Temporal aggregation level
+    :param transform: Recommended transform
+    :param description: Human-readable description
+    :param unit: Measurement unit
+    :param valid_range: (min, max) for sanity checks
+    :param is_primary: Whether primary outcome (affects multiplicity)
+    :param sensor: Source sensor
+    :param requires_both_sides: Whether both sides must exist
+    :param overwrite: Allow overwriting existing entry
+    :returns: The registered OutcomeInfo dict
+    """
+    if name in OUTCOME_REGISTRY and not overwrite:
+        raise ValueError(
+            f"Outcome '{name}' already registered. Use overwrite=True to replace."
+        )
+    
+    info = create_outcome_info(
+        name=name,
+        outcome_type=outcome_type,
+        level=level,
+        transform=transform,
+        description=description,
+        unit=unit,
+        valid_range=valid_range,
+        is_primary=is_primary,
+        sensor=sensor,
+        requires_both_sides=requires_both_sides,
+    )
+    OUTCOME_REGISTRY[name] = info
+    return info
+
+
+def list_outcomes(
+    outcome_type: Optional[OutcomeType] = None,
+    level: Optional[AnalysisLevel] = None,
+    sensor: Optional[str] = None,
+    primary_only: bool = False,
+) -> List[str]:
+    """
+    List registered outcomes, optionally filtered.
+    
+    :param outcome_type: Filter by model family
+    :param level: Filter by analysis level
+    :param sensor: Filter by sensor source
+    :param primary_only: Only return primary outcomes
+    :returns: List of outcome names matching criteria
+    """
+    results = []
+    for name, info in OUTCOME_REGISTRY.items():
+        if outcome_type is not None and info["outcome_type"] != outcome_type:
+            continue
+        if level is not None and info["level"] != level:
+            continue
+        if sensor is not None and info["sensor"] != sensor:
+            continue
+        if primary_only and not info["is_primary"]:
+            continue
+        results.append(name)
+    return sorted(results)
+
+
+def get_primary_outcomes() -> List[str]:
+    """Get list of primary outcome names."""
+    return list_outcomes(primary_only=True)
+
+
+def get_continuous_outcomes() -> List[str]:
+    """Get list of continuous (LMM-suitable) outcome names."""
+    return list_outcomes(outcome_type=OutcomeType.CONTINUOUS)
+
+
+def get_proportion_outcomes() -> List[str]:
+    """Get list of proportion [0,1] outcome names."""
+    return list_outcomes(outcome_type=OutcomeType.PROPORTION)
+
+
+def get_count_outcomes() -> List[str]:
+    """Get list of count outcome names."""
+    return list_outcomes(outcome_type=OutcomeType.COUNT)
+
+
+def reset_registry() -> None:
+    """Reset registry to default EMG outcomes."""
+    global OUTCOME_REGISTRY
+    OUTCOME_REGISTRY.clear()
+    OUTCOME_REGISTRY.update(_DEFAULT_EMG_OUTCOMES)
