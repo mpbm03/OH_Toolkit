@@ -75,11 +75,12 @@ See [Full Documentation](docs/OH_PARSER_CONTEXT.md)
 
 ### oh_stats
 
-Statistical analysis pipeline for repeated-measures EMG data using Linear Mixed Models.
+Statistical analysis pipeline for repeated-measures Occupational Health data using Linear Mixed Models. Supports multiple sensor types and outcome categories.
 
 **Features:**
-- Outcome registry with automatic model dispatch
-- Data preparation with laterality handling
+- **Multi-modal data support**: EMG, questionnaires, and extensible to other sensors
+- **Outcome type registry**: Automatic handling of continuous, ordinal, proportion, count, and binary outcomes
+- Data preparation with laterality and time-series handling
 - Descriptive statistics and assumption checking
 - Linear Mixed Models (statsmodels)
 - Post-hoc contrasts with effect sizes
