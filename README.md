@@ -71,7 +71,7 @@ A generic parser for extracting data from OH profile JSON files into pandas Data
 - Filter by subjects, date ranges, or data availability
 - Wildcard support for iterating over dynamic keys
 
-See [Full Documentation](docs/OH_PARSER_CONTEXT.md)
+See [Full Documentation](docs/OH_PARSER_CONTEXT.md) | [PDF](docs/OH_PARSER_DOCUMENTATION.pdf)
 
 ### oh_stats
 
@@ -88,7 +88,7 @@ Statistical analysis pipeline for repeated-measures Occupational Health data usi
 - Model diagnostics and residual analysis
 - Publication-ready report generation
 
-See [Full Documentation](docs/OH_STATS_DOCUMENTATION.md) | [PDF](docs/OH_STATS_DOCUMENTATION.pdf)
+See [Complete Guide](docs/OH_STATS_GUIDE.md) | [PDF](docs/OH_STATS_GUIDE.pdf)
 
 ## Project Structure
 
@@ -115,8 +115,9 @@ OH_Toolkit/
 │   └── report.py                # Report generation
 ├── docs/                         # Documentation
 │   ├── OH_PARSER_CONTEXT.md
-│   ├── OH_STATS_DOCUMENTATION.md
-│   └── OH_STATS_DOCUMENTATION.pdf
+│   ├── OH_PARSER_DOCUMENTATION.pdf
+│   ├── OH_STATS_GUIDE.md
+│   └── OH_STATS_GUIDE.pdf
 ├── testing_parser.py             # Parser tests
 └── testing_stats.py              # Stats pipeline demo
 ```
