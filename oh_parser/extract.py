@@ -71,6 +71,7 @@ def extract_nested(
     exclude_patterns: Optional[List[str]] = None,
     flatten_values: bool = True,
     include_subject_id: bool = True,
+    include_work_type: bool = True,
 ) -> pd.DataFrame:
     """
     Extract nested structures into a long-format DataFrame.
@@ -100,33 +101,42 @@ def extract_nested(
     """
     filtered_profiles = apply_subject_filters(profiles, filters)
     exclude_patterns = exclude_patterns or []
-    
     rows = []
-    
+
     for subject_id, profile in filtered_profiles.items():
-        # Get the base data
         base_data = resolve_path(profile, base_path)
         if base_data is None or not isinstance(base_data, dict):
             continue
-        
-        # Recursively iterate through levels
+
+        context = {}
+
+        if include_subject_id:
+            context["subject_id"] = subject_id
+
+        if include_work_type:
+            context["work_type"] = resolve_path(profile, "meta_data.work_type")
+
         _extract_levels(
             data=base_data,
             level_names=level_names,
             level_idx=0,
-            context={"subject_id": subject_id} if include_subject_id else {},
+            context=context,
             value_paths=value_paths,
             exclude_patterns=exclude_patterns,
             flatten_values=flatten_values,
             rows=rows,
             filters=filters,
         )
-    
+
     if not rows:
-        # Return empty DataFrame with expected columns
-        columns = (["subject_id"] if include_subject_id else []) + level_names
+        columns = []
+        if include_subject_id:
+            columns.append("subject_id")
+        if include_work_type:
+            columns.append("work_type")
+        columns += level_names
         return pd.DataFrame(columns=columns)
-    
+
     return pd.DataFrame(rows)
 
 

@@ -27,7 +27,7 @@ print("=" * 60)
 print("LOADING PROFILES")
 print("=" * 60)
 
-OH_PROFILES_PATH = r"/Volumes/NO NAME/Backup PrevOccupAI_PLUS Data/OH_profiles"
+OH_PROFILES_PATH = r"D:\Teste\metrics\Sara"
 profiles = load_profiles(OH_PROFILES_PATH)
 
 subjects = list_subjects(profiles)
@@ -56,7 +56,7 @@ if profile is not None:
 else:
     print("Profile not found!")
 
-
+"""
 # =============================================================================
 # EXAMPLE 2: Extract specific paths (wide format)
 # =============================================================================
@@ -70,7 +70,7 @@ df_weekly = extract(profiles, paths={
     "p50_L": "sensor_metrics.emg.EMG_weekly_metrics.left.EMG_apdf.active.p50",
     "p90_L": "sensor_metrics.emg.EMG_weekly_metrics.left.EMG_apdf.active.p90",
     "rest_pct_L": "sensor_metrics.emg.EMG_weekly_metrics.left.EMG_rest_recovery.rest_percent",
-    
+
     # Right side EMG
     "p10_R": "sensor_metrics.emg.EMG_weekly_metrics.right.EMG_apdf.active.p10",
     "p50_R": "sensor_metrics.emg.EMG_weekly_metrics.right.EMG_apdf.active.p50",
@@ -83,7 +83,7 @@ print(f"Columns: {df_weekly.columns.tolist()}")
 print("\nFirst 5 rows:")
 print(df_weekly.head())
 
-
+"""
 # =============================================================================
 # EXAMPLE 3: Extract all EMG sessions (long format)
 # =============================================================================
@@ -93,15 +93,14 @@ print("=" * 60)
 
 df_sessions = extract_nested(
     profiles,
-    base_path="sensor_metrics.emg",
-    level_names=["date", "session", "side"],
+    base_path="sensor_metrics.heart_rate",
+    level_names=["date", "session"],
     value_paths=[
-        "EMG_intensity.mean_percent_mvc",
-        "EMG_intensity.max_percent_mvc",
-        "EMG_apdf.active.p50",
-        "EMG_rest_recovery.rest_percent",
+        "HR_BPM_stats.*",
+        "HR_ratio_stats.*",
+        "HR_distributions.*"
     ],
-    exclude_patterns=["EMG_daily_metrics", "EMG_weekly_metrics"],
+    exclude_patterns=["HR_timeline"]
 )
 
 print(f"\nSession-level DataFrame shape: {df_sessions.shape}")
@@ -109,7 +108,7 @@ print(f"Columns: {df_sessions.columns.tolist()}")
 print("\nFirst 10 rows:")
 print(df_sessions.head(10))
 
-
+"""
 # =============================================================================
 # EXAMPLE 4: Extract with wildcards (all keys under a path)
 # =============================================================================
@@ -223,3 +222,4 @@ print(summary.head(10))
 print("\n" + "=" * 60)
 print("ALL EXAMPLES COMPLETED SUCCESSFULLY!")
 print("=" * 60)
+"""
