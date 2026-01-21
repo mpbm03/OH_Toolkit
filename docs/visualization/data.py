@@ -5,9 +5,9 @@ from oh_parser import (
     extract_nested)
 import pandas as pd
 
-from utils import autofill_nan_groups
+from utils import autofill_nan_groups, add_weekday_pt, add_session_number
 
-def extract_smartwatch_and_smartphone(profiles, components=("HR", "noise", "activity")):
+def extract_smartwatch_and_smartphone(profiles, components=("HR", "wrist", "noise", "activity")):
     """
     Extract smartwatch and smartphone metrics from OH profiles.
 
@@ -18,6 +18,7 @@ def extract_smartwatch_and_smartphone(profiles, components=("HR", "noise", "acti
     components : tuple of str, optional
         Components to extract. Supported values:
         - "HR"        : Heart rate (smartwatch)
+        - "wrist"     : Wrist activities (smartwatch)
         - "noise"     : Noise (smartphone)
         - "activity"  : Human activities (smartphone)
 
@@ -28,10 +29,11 @@ def extract_smartwatch_and_smartphone(profiles, components=("HR", "noise", "acti
     """
 
     # ---------- SMARTWATCH ----------
-    df_smartwatch = pd.DataFrame()
+    df_hr = pd.DataFrame()
+    df_wrist = pd.DataFrame()
 
     if "HR" in components:
-        df_smartwatch = extract_nested(
+        df_hr = extract_nested(
             profiles,
             base_path="sensor_metrics.heart_rate",
             level_names=["date", "session"],
@@ -42,7 +44,39 @@ def extract_smartwatch_and_smartphone(profiles, components=("HR", "noise", "acti
             ],
             exclude_patterns=["HR_timeline"]
         )
-        df_smartwatch = autofill_nan_groups(df_smartwatch)
+        df_hr = autofill_nan_groups(df_hr)
+
+    if "wrist" in components:
+        df_wrist = extract_nested(
+            profiles,
+            base_path="sensor_metrics.wrist_activities",
+            level_names=["date", "session"],
+            value_paths=[
+                "WRIST_significant_rotation_percentage",
+                "WRIST_significant_acceleration_percentage",
+            ],
+        )
+
+    # Merge smartwatch components if both exist
+    if not df_hr.empty and not df_wrist.empty:
+        df_smartwatch = pd.merge(
+            df_hr,
+            df_wrist,
+            on=["subject_id", "work_type", "date", "session"],
+            how="outer"
+        )
+    elif not df_hr.empty:
+        df_smartwatch = df_hr
+    elif not df_wrist.empty:
+        df_smartwatch = df_wrist
+    else:
+        df_smartwatch = pd.DataFrame()
+
+    # Add weekday and session number column
+    if not df_smartwatch.empty:
+        df_smartwatch = add_weekday_pt(df_smartwatch, date_col="date")
+        df_smartwatch = add_session_number(df_smartwatch, date_col="date", session_col="session")
+
 
     # ---------- SMARTPHONE ----------
     df_noise = pd.DataFrame()
@@ -91,5 +125,6 @@ def extract_smartwatch_and_smartphone(profiles, components=("HR", "noise", "acti
 
     if not df_smartphone.empty:
         df_smartphone = autofill_nan_groups(df_smartphone)
+        df_smartphone = add_weekday_pt(df_smartphone, date_col="date")
 
     return df_smartwatch, df_smartphone

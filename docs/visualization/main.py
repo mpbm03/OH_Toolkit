@@ -7,10 +7,11 @@ from oh_parser import (
 import pandas as pd
 
 from data import extract_smartwatch_and_smartphone
+from pairplot import pairplot_by_weekday, pairplot_by_weekday_and_session
 
 OH_PROFILES_PATH = r"D:\Teste\metrics\Sara"
 
-COMPONENTS = ("HR", "noise", "activity")
+COMPONENTS = ("HR", "noise", "activity", "wrist")
 
 if __name__ == '__main__':
     OH_PROFILES_PATH = r"D:\Teste\metrics\Sara"
@@ -31,5 +32,18 @@ if __name__ == '__main__':
     print(df_smartphone.columns.tolist())
     print("\nSmartphone shape:", df_smartphone.shape)
 
+
+    # SMARTPHONE pairplots per day
+    pairplot_by_weekday(df_smartphone, "Noise_statistics")
+    pairplot_by_weekday(df_smartphone, "Noise_distributions")
+    pairplot_by_weekday(df_smartphone, "HAR_distributions")
+    pairplot_by_weekday(df_smartphone, "HAR_durations")
+    pairplot_by_weekday(df_smartphone, "HAR_steps")
+
+    # SMARTWATCH pairplots per session
+    pairplot_by_weekday_and_session(df_smartwatch, "HR_BPM_stats")
+    pairplot_by_weekday_and_session(df_smartwatch, "HR_ratio_stats")
+    pairplot_by_weekday_and_session(df_smartwatch, "HR_distributions")
+    pairplot_by_weekday_and_session(df_smartwatch, "WRIST_significant")
 
 
