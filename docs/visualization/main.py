@@ -37,7 +37,6 @@ if __name__ == '__main__':
     pairplot_by_weekday(df_smartphone, "Noise_statistics")
     pairplot_by_weekday(df_smartphone, "Noise_distributions")
     pairplot_by_weekday(df_smartphone, "HAR_distributions")
-    pairplot_by_weekday(df_smartphone, "HAR_durations")
     pairplot_by_weekday(df_smartphone, "HAR_steps")
 
     # SMARTWATCH pairplots per session

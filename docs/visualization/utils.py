@@ -1,5 +1,18 @@
 import pandas as pd
 
+def shorten_axis_labels(cols, group_prefix):
+    """
+    Remove the group prefix from column names for plotting.
+
+    Example:
+    Noise_distributions.Ruído baixo -> Ruído baixo
+    HR_BPM_stats.mean -> mean
+    """
+    return {
+        c: c.replace(group_prefix + ".", "")
+        for c in cols
+    }
+
 def add_session_number(df, date_col="date", session_col="session"):
     """
     Add a session number column based on the order of the session time.
